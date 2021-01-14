@@ -12,14 +12,17 @@ export class DateTimeParser {
             return date.clone().getDateInstance();
 
         if (/^-?\d{10,}$/.test(date)) {
-            return DateTime.fromMillis(Number(date)).toJSDate();
+            return DateTime.fromMillis(parseInt(date, 10)).toJSDate();
         }
 
         if (typeof date === "string") {
             const dt = DateTime.fromFormat(date, format, { locale: lang });
             return dt.toJSDate();
         }
-        return DateTime.fromMillis(date).toJSDate();
+        if (typeof date === "number") {
+            return DateTime.fromMillis(date).toJSDate();
+        }
+        return new Date(NaN);
     }
 
     public static convertArray(

@@ -56,6 +56,11 @@ test("new DateTimeParser", () => {
     ).toBe(true);
 });
 
+test("new DateTimeParse handle string ts", () => {
+    const dt1 = new DateTimeParser("1610653269176");
+    expect(dt1.getDateInstance()).toEqual(new Date("2021-01-14T19:41:09.176Z"));
+});
+
 test("DateTimeParser.convertArray - lockDays/bookedDays", () => {
     const array = [
         "2019-11-23",
