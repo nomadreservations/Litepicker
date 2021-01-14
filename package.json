@@ -35,7 +35,9 @@
     "url": "https://github.com/wakirin/litepicker/issues"
   },
   "license": "MIT",
-  "dependencies": {},
+  "dependencies": {
+    "luxon": "^1.25.0"
+  },
   "devDependencies": {
     "@types/jest": "^24.0.23",
     "@types/node": "^12.12.7",

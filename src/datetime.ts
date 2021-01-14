@@ -1,493 +1,513 @@
-export class DateTime {
+import { DateTime } from "luxon";
+export class DateTimeParser {
+    public static parseDateTimeParser(
+        date: Date | DateTimeParser | string,
+        format: string = "YYYY-MM-DD",
+        lang: string = "en-US"
+    ): Date {
+        if (!date) return new Date(NaN);
 
-  public static parseDateTime(
-    date: Date | DateTime | string,
-    format: string = 'YYYY-MM-DD',
-    lang: string = 'en-US'): Date {
-    if (!date) return new Date(NaN);
+        if (date instanceof Date) return new Date(date);
+        if (date instanceof DateTimeParser)
+            return date.clone().getDateInstance();
 
-    if (date instanceof Date) return new Date(date);
-    if (date instanceof DateTime) return date.clone().getDateInstance();
-
-    if (/^-?\d{10,}$/.test(date)) return DateTime.getDateZeroTime(new Date(Number(date)));
-
-    if (typeof date === 'string') {
-      const matches = [];
-      let m = null;
-
-      // tslint:disable-next-line: no-conditional-assignment
-      while ((m = DateTime.regex.exec(format)) != null) {
-        if (m[1] === '\\') continue; // delete when regexp lookbehind
-
-        matches.push(m);
-      }
-
-      if (matches.length) {
-        const datePattern = {
-          year: null,
-          month: null,
-          shortMonth: null,
-          longMonth: null,
-          day: null,
-          value: '',
-        };
-
-        if (matches[0].index > 0) {
-          datePattern.value += '.*?';
+        if (/^-?\d{10,}$/.test(date)) {
+            return DateTime.fromMillis(Number(date)).toJSDate();
         }
 
-        for (const [k, match] of Object.entries(matches)) {
-          const key = Number(k);
+        if (typeof date === "string") {
+            if (format === "YYYY-MM-DD") {
+                return DateTime.fromISO(date).toJSDate();
+            }
+            const dt = DateTime.fromFormat(date, format, { locale: lang });
+            return dt.toJSDate();
+        }
+        return DateTime.fromMillis(date).toJSDate();
+    }
 
-          const { group, pattern } = DateTime.formatPatterns(match[0], lang);
+    public static convertArray(
+        array: Array<Date | Date[] | string | string[]>,
+        format: string
+    ): Array<DateTimeParser | DateTimeParser[]> {
+        return array.map((d) => {
+            if (d instanceof Array) {
+                return (d as Array<Date | string>).map(
+                    (d1) => new DateTimeParser(d1, format)
+                );
+            }
+            return new DateTimeParser(d, format);
+        });
+    }
 
-          datePattern[group] = key + 1;
-          datePattern.value += pattern;
+    public static getDateZeroTime(date: Date): Date {
+        return new Date(
+            date.getFullYear(),
+            date.getMonth(),
+            date.getDate(),
+            0,
+            0,
+            0,
+            0
+        );
+    }
 
-          datePattern.value += '.*?'; // any delimiters
+    // replace to regexp lookbehind when most popular browsers will support
+    // https://caniuse.com/#feat=js-regexp-lookbehind
+    // /(?<!\\)(Y{2,4}|M{1,4}|D{1,2}|d{1,4}])/g
+    private static regex: RegExp = /(\\)?(Y{2,4}|M{1,4}|D{1,2}|d{1,4})/g;
+
+    private static readonly MONTH_JS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+
+    private static shortMonths(lang): string[] {
+        return DateTimeParser.MONTH_JS.map((x) =>
+            new Date(2019, x).toLocaleString(lang, { month: "short" })
+        );
+    }
+
+    private static longMonths(lang): string[] {
+        return DateTimeParser.MONTH_JS.map((x) =>
+            new Date(2019, x).toLocaleString(lang, { month: "long" })
+        );
+    }
+
+    private static formatPatterns(token, lang) {
+        switch (token) {
+            case "YY":
+            case "YYYY":
+                return {
+                    group: "year",
+                    pattern: `(\\d{${token.length}})`,
+                };
+
+            case "M":
+                return {
+                    group: "month",
+                    pattern: "(\\d{1,2})",
+                };
+
+            case "MM":
+                return {
+                    group: "month",
+                    pattern: "(\\d{2})",
+                };
+
+            case "MMM":
+                return {
+                    group: "shortMonth",
+                    pattern: `(${DateTimeParser.shortMonths(lang).join("|")})`,
+                };
+
+            case "MMMM":
+                return {
+                    group: "longMonth",
+                    pattern: `(${DateTimeParser.longMonths(lang).join("|")})`,
+                };
+
+            case "D":
+                return {
+                    group: "day",
+                    pattern: "(\\d{1,2})",
+                };
+
+            case "DD":
+                return {
+                    group: "day",
+                    pattern: "(\\d{2})",
+                };
+        }
+    }
+
+    protected lang: string;
+
+    private dateInstance: Date;
+
+    constructor(
+        date: Date | DateTimeParser | string = null,
+        format: string = null,
+        lang: string = "en-US"
+    ) {
+        if (format) {
+            this.dateInstance = DateTimeParser.parseDateTimeParser(
+                date,
+                format,
+                lang
+            );
+        } else if (date) {
+            this.dateInstance = DateTimeParser.parseDateTimeParser(date);
+        } else {
+            this.dateInstance = DateTimeParser.parseDateTimeParser(new Date());
         }
 
-        const dateRegex = new RegExp(`^${datePattern.value}$`);
+        this.lang = lang;
+    }
 
-        if (dateRegex.test(date)) {
-          const d = dateRegex.exec(date);
+    public getDateInstance(): Date {
+        return this.dateInstance;
+    }
 
-          const year = Number(d[datePattern.year]);
-          let month = null;
+    public toLocaleString(
+        arg0: string,
+        arg1: Intl.DateTimeFormatOptions
+    ): string {
+        return this.dateInstance.toLocaleString(arg0, arg1);
+    }
 
-          if (datePattern.month) {
-            month = Number(d[datePattern.month]) - 1;
-          } else if (datePattern.shortMonth) {
-            month = DateTime.shortMonths(lang).indexOf(d[datePattern.shortMonth]);
-          } else if (datePattern.longMonth) {
-            month = DateTime.longMonths(lang).indexOf(d[datePattern.longMonth]);
-          }
+    public toDateString(): string {
+        return this.dateInstance.toDateString();
+    }
 
-          const day = Number(d[datePattern.day]) || 1;
+    public getSeconds(): number {
+        return this.dateInstance.getSeconds();
+    }
 
-          return new Date(year, month, day, 0, 0, 0, 0);
+    public getDay(): number {
+        return this.dateInstance.getDay();
+    }
+
+    public getTime(): number {
+        return this.dateInstance.getTime();
+    }
+
+    public getDate(): number {
+        return this.dateInstance.getDate();
+    }
+
+    public getMonth(): number {
+        return this.dateInstance.getMonth();
+    }
+
+    public getFullYear(): number {
+        return this.dateInstance.getFullYear();
+    }
+
+    public setMonth(arg: number): number {
+        return this.dateInstance.setMonth(arg);
+    }
+
+    public setHours(
+        hours: number = 0,
+        minutes: number = 0,
+        seconds: number = 0,
+        ms: number = 0
+    ) {
+        this.dateInstance.setHours(hours, minutes, seconds, ms);
+    }
+
+    public setSeconds(arg: number): number {
+        return this.dateInstance.setSeconds(arg);
+    }
+
+    public setDate(arg: number): number {
+        return this.dateInstance.setDate(arg);
+    }
+
+    public setFullYear(arg: number): number {
+        return this.dateInstance.setFullYear(arg);
+    }
+
+    public getWeek(firstDay: number): number {
+        const target = new Date(this.timestamp());
+        const dayNr = (this.getDay() + (7 - firstDay)) % 7;
+        target.setDate(target.getDate() - dayNr);
+        const startWeekday = target.getTime();
+        target.setMonth(0, 1);
+        if (target.getDay() !== firstDay) {
+            target.setMonth(0, 1 + ((4 - target.getDay() + 7) % 7));
         }
-      }
+        return 1 + Math.ceil((startWeekday - target.getTime()) / 604800000);
     }
 
-    return DateTime.getDateZeroTime(new Date(date));
-  }
+    public clone(): DateTimeParser {
+        return new DateTimeParser(this.getDateInstance());
+    }
 
-  public static convertArray(
-    array: Array<Date | Date[] | string | string[]>,
-    format: string): Array<DateTime | DateTime[]> {
-    return array
-      .map((d) => {
-        if (d instanceof Array) {
-          return (d as Array<Date | string>).map(d1 => new DateTime(d1, format));
+    public isBetween(
+        date1: DateTimeParser,
+        date2: DateTimeParser,
+        inclusivity = "()"
+    ): boolean {
+        switch (inclusivity) {
+            default:
+            case "()":
+                return (
+                    this.timestamp() > date1.getTime() &&
+                    this.timestamp() < date2.getTime()
+                );
+
+            case "[)":
+                return (
+                    this.timestamp() >= date1.getTime() &&
+                    this.timestamp() < date2.getTime()
+                );
+
+            case "(]":
+                return (
+                    this.timestamp() > date1.getTime() &&
+                    this.timestamp() <= date2.getTime()
+                );
+
+            case "[]":
+                return (
+                    this.timestamp() >= date1.getTime() &&
+                    this.timestamp() <= date2.getTime()
+                );
         }
-        return new DateTime(d, format);
-      });
-  }
-
-  public static getDateZeroTime(date: Date): Date {
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
-  }
-
-  // replace to regexp lookbehind when most popular browsers will support
-  // https://caniuse.com/#feat=js-regexp-lookbehind
-  // /(?<!\\)(Y{2,4}|M{1,4}|D{1,2}|d{1,4}])/g
-  private static regex: RegExp = /(\\)?(Y{2,4}|M{1,4}|D{1,2}|d{1,4})/g;
-
-  private static readonly MONTH_JS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-
-  private static shortMonths(lang): string[] {
-    return DateTime.MONTH_JS
-      .map(x => new Date(2019, x).toLocaleString(lang, { month: 'short' }));
-  }
-
-  private static longMonths(lang): string[] {
-    return DateTime.MONTH_JS
-      .map(x => new Date(2019, x).toLocaleString(lang, { month: 'long' }));
-  }
-
-  private static formatPatterns(token, lang) {
-    switch (token) {
-      case 'YY':
-      case 'YYYY':
-        return {
-          group: 'year',
-          pattern: `(\\d{${token.length}})`,
-        };
-
-      case 'M':
-        return {
-          group: 'month',
-          pattern: '(\\d{1,2})',
-        };
-
-      case 'MM':
-        return {
-          group: 'month',
-          pattern: '(\\d{2})',
-        };
-
-      case 'MMM':
-        return {
-          group: 'shortMonth',
-          pattern: `(${DateTime.shortMonths(lang).join('|')})`,
-        };
-
-      case 'MMMM':
-        return {
-          group: 'longMonth',
-          pattern: `(${DateTime.longMonths(lang).join('|')})`,
-        };
-
-      case 'D':
-        return {
-          group: 'day',
-          pattern: '(\\d{1,2})',
-        };
-
-      case 'DD':
-        return {
-          group: 'day',
-          pattern: '(\\d{2})',
-        };
-    }
-  }
-
-  protected lang: string;
-
-  private dateInstance: Date;
-
-  constructor(
-    date: Date | DateTime | string = null,
-    format: string = null,
-    lang: string = 'en-US') {
-    if (format) {
-      this.dateInstance = (DateTime.parseDateTime(date, format, lang));
-    } else if (date) {
-      this.dateInstance = (DateTime.parseDateTime(date));
-    } else {
-      this.dateInstance = (DateTime.parseDateTime(new Date()));
     }
 
-    this.lang = lang;
-  }
+    public isBefore(date: DateTimeParser, unit = "seconds"): boolean {
+        switch (unit) {
+            case "second":
+            case "seconds":
+                return date.getTime() > this.getTime();
 
-  public getDateInstance(): Date {
-    return this.dateInstance;
-  }
+            case "day":
+            case "days":
+                return (
+                    new Date(
+                        date.getFullYear(),
+                        date.getMonth(),
+                        date.getDate()
+                    ).getTime() >
+                    new Date(
+                        this.getFullYear(),
+                        this.getMonth(),
+                        this.getDate()
+                    ).getTime()
+                );
 
-  public toLocaleString(arg0: string, arg1: Intl.DateTimeFormatOptions): string {
-    return this.dateInstance.toLocaleString(arg0, arg1);
-  }
+            case "month":
+            case "months":
+                return (
+                    new Date(date.getFullYear(), date.getMonth(), 1).getTime() >
+                    new Date(this.getFullYear(), this.getMonth(), 1).getTime()
+                );
 
-  public toDateString(): string {
-    return this.dateInstance.toDateString();
-  }
-
-  public getSeconds(): number {
-    return this.dateInstance.getSeconds();
-  }
-
-  public getDay(): number {
-    return this.dateInstance.getDay();
-  }
-
-  public getTime(): number {
-    return this.dateInstance.getTime();
-  }
-
-  public getDate(): number {
-    return this.dateInstance.getDate();
-  }
-
-  public getMonth(): number {
-    return this.dateInstance.getMonth();
-  }
-
-  public getFullYear(): number {
-    return this.dateInstance.getFullYear();
-  }
-
-  public setMonth(arg: number): number {
-    return this.dateInstance.setMonth(arg);
-  }
-
-  public setHours(hours: number = 0, minutes: number = 0, seconds: number = 0, ms: number = 0) {
-    this.dateInstance.setHours(hours, minutes, seconds, ms);
-  }
-
-  public setSeconds(arg: number): number {
-    return this.dateInstance.setSeconds(arg);
-  }
-
-  public setDate(arg: number): number {
-    return this.dateInstance.setDate(arg);
-  }
-
-  public setFullYear(arg: number): number {
-    return this.dateInstance.setFullYear(arg);
-  }
-
-  public getWeek(firstDay: number): number {
-    const target = new Date(this.timestamp());
-    const dayNr = (this.getDay() + (7 - firstDay)) % 7;
-    target.setDate(target.getDate() - dayNr);
-    const startWeekday = target.getTime();
-    target.setMonth(0, 1);
-    if (target.getDay() !== firstDay) {
-      target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
-    }
-    return 1 + Math.ceil((startWeekday - target.getTime()) / 604800000);
-  }
-
-  public clone(): DateTime {
-    return new DateTime(this.getDateInstance());
-  }
-
-  public isBetween(date1: DateTime, date2: DateTime, inclusivity = '()'): boolean {
-
-    switch (inclusivity) {
-      default:
-      case '()':
-        return this.timestamp() > date1.getTime() && this.timestamp() < date2.getTime();
-
-      case '[)':
-        return this.timestamp() >= date1.getTime() && this.timestamp() < date2.getTime();
-
-      case '(]':
-        return this.timestamp() > date1.getTime() && this.timestamp() <= date2.getTime();
-
-      case '[]':
-        return this.timestamp() >= date1.getTime() && this.timestamp() <= date2.getTime();
-    }
-  }
-
-  public isBefore(date: DateTime, unit = 'seconds'): boolean {
-    switch (unit) {
-      case 'second':
-      case 'seconds':
-        return date.getTime() > this.getTime();
-
-      case 'day':
-      case 'days':
-        return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
-          > new Date(this.getFullYear(), this.getMonth(), this.getDate()).getTime();
-
-      case 'month':
-      case 'months':
-        return new Date(date.getFullYear(), date.getMonth(), 1).getTime()
-          > new Date(this.getFullYear(), this.getMonth(), 1).getTime();
-
-      case 'year':
-      case 'years':
-        return date.getFullYear() > this.getFullYear();
-    }
-
-    throw new Error('isBefore: Invalid unit!');
-  }
-
-  public isSameOrBefore(date: DateTime, unit = 'seconds'): boolean {
-    switch (unit) {
-      case 'second':
-      case 'seconds':
-        return date.getTime() >= this.getTime();
-
-      case 'day':
-      case 'days':
-        return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
-          >= new Date(this.getFullYear(), this.getMonth(), this.getDate()).getTime();
-
-      case 'month':
-      case 'months':
-        return new Date(date.getFullYear(), date.getMonth(), 1).getTime()
-          >= new Date(this.getFullYear(), this.getMonth(), 1).getTime();
-    }
-
-    throw new Error('isSameOrBefore: Invalid unit!');
-  }
-
-  public isAfter(date: DateTime, unit = 'seconds'): boolean {
-    switch (unit) {
-      case 'second':
-      case 'seconds':
-        return this.getTime() > date.getTime();
-
-      case 'day':
-      case 'days':
-        return new Date(this.getFullYear(), this.getMonth(), this.getDate()).getTime()
-          > new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-
-      case 'month':
-      case 'months':
-        return new Date(this.getFullYear(), this.getMonth(), 1).getTime()
-          > new Date(date.getFullYear(), date.getMonth(), 1).getTime();
-
-      case 'year':
-      case 'years':
-        return this.getFullYear() > date.getFullYear();
-    }
-
-    throw new Error('isAfter: Invalid unit!');
-  }
-
-  public isSameOrAfter(date: DateTime, unit = 'seconds'): boolean {
-    switch (unit) {
-      case 'second':
-      case 'seconds':
-        return this.getTime() >= date.getTime();
-
-      case 'day':
-      case 'days':
-        return new Date(this.getFullYear(), this.getMonth(), this.getDate()).getTime()
-          >= new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-
-      case 'month':
-      case 'months':
-        return new Date(this.getFullYear(), this.getMonth(), 1).getTime()
-          >= new Date(date.getFullYear(), date.getMonth(), 1).getTime();
-    }
-
-    throw new Error('isSameOrAfter: Invalid unit!');
-  }
-
-  public isSame(date: DateTime, unit = 'seconds'): boolean {
-    switch (unit) {
-      case 'second':
-      case 'seconds':
-        return this.getTime() === date.getTime();
-
-      case 'day':
-      case 'days':
-        return new Date(this.getFullYear(), this.getMonth(), this.getDate()).getTime()
-          === new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-
-      case 'month':
-      case 'months':
-        return new Date(this.getFullYear(), this.getMonth(), 1).getTime()
-          === new Date(date.getFullYear(), date.getMonth(), 1).getTime();
-    }
-
-    throw new Error('isSame: Invalid unit!');
-  }
-
-  public add(duration: number, unit = 'seconds'): DateTime {
-    switch (unit) {
-      case 'second':
-      case 'seconds':
-        this.setSeconds(this.getSeconds() + duration);
-        break;
-
-      case 'day':
-      case 'days':
-        this.setDate(this.getDate() + duration);
-        break;
-
-      case 'month':
-      case 'months':
-        this.setMonth(this.getMonth() + duration);
-        break;
-    }
-
-    return this;
-  }
-
-  public subtract(duration: number, unit = 'seconds'): DateTime {
-    switch (unit) {
-      case 'second':
-      case 'seconds':
-        this.setSeconds(this.getSeconds() - duration);
-        break;
-
-      case 'day':
-      case 'days':
-        this.setDate(this.getDate() - duration);
-        break;
-
-      case 'month':
-      case 'months':
-        this.setMonth(this.getMonth() - duration);
-        break;
-    }
-
-    return this;
-  }
-
-  public diff(date: DateTime, unit = 'seconds'): number {
-    const oneDay = 1000 * 60 * 60 * 24;
-
-    switch (unit) {
-      default:
-      case 'second':
-      case 'seconds':
-        return this.getTime() - date.getTime();
-
-      case 'day':
-      case 'days':
-        return Math.round((this.timestamp() - date.getTime()) / oneDay);
-
-      case 'month':
-      case 'months':
-      // @TODO
-    }
-  }
-
-  public format(format: string, lang: string = 'en-US'): string {
-    let response = '';
-
-    const matches = [];
-    let m = null;
-
-    // tslint:disable-next-line: no-conditional-assignment
-    while ((m = DateTime.regex.exec(format)) != null) {
-      if (m[1] === '\\') continue; // delete when regexp lookbehind
-
-      matches.push(m);
-    }
-
-    if (matches.length) {
-      // add start line of tokens are not at the beginning
-      if (matches[0].index > 0) {
-        response += format.substring(0, matches[0].index);
-      }
-
-      for (const [k, match] of Object.entries(matches)) {
-        const key = Number(k);
-        response += this.formatTokens(match[0], lang);
-
-        if (matches[key + 1]) {
-          response += format.substring(match.index + match[0].length, matches[key + 1].index);
+            case "year":
+            case "years":
+                return date.getFullYear() > this.getFullYear();
         }
 
-        // add end line if tokens are not at the ending
-        if (key === matches.length - 1) {
-          response += format.substring(match.index + match[0].length);
+        throw new Error("isBefore: Invalid unit!");
+    }
+
+    public isSameOrBefore(date: DateTimeParser, unit = "seconds"): boolean {
+        switch (unit) {
+            case "second":
+            case "seconds":
+                return date.getTime() >= this.getTime();
+
+            case "day":
+            case "days":
+                return (
+                    new Date(
+                        date.getFullYear(),
+                        date.getMonth(),
+                        date.getDate()
+                    ).getTime() >=
+                    new Date(
+                        this.getFullYear(),
+                        this.getMonth(),
+                        this.getDate()
+                    ).getTime()
+                );
+
+            case "month":
+            case "months":
+                return (
+                    new Date(
+                        date.getFullYear(),
+                        date.getMonth(),
+                        1
+                    ).getTime() >=
+                    new Date(this.getFullYear(), this.getMonth(), 1).getTime()
+                );
         }
-      }
+
+        throw new Error("isSameOrBefore: Invalid unit!");
     }
 
-    // remove escape characters
-    return response.replace(/\\/g, '');
-  }
+    public isAfter(date: DateTimeParser, unit = "seconds"): boolean {
+        switch (unit) {
+            case "second":
+            case "seconds":
+                return this.getTime() > date.getTime();
 
-  private timestamp(): number {
-    return new Date(this.getFullYear(), this.getMonth(), this.getDate(), 0, 0, 0, 0).getTime();
-  }
+            case "day":
+            case "days":
+                return (
+                    new Date(
+                        this.getFullYear(),
+                        this.getMonth(),
+                        this.getDate()
+                    ).getTime() >
+                    new Date(
+                        date.getFullYear(),
+                        date.getMonth(),
+                        date.getDate()
+                    ).getTime()
+                );
 
-  private formatTokens(token, lang) {
-    switch (token) {
-      case 'YY': return String(this.getFullYear()).slice(-2);
-      case 'YYYY': return String(this.getFullYear());
+            case "month":
+            case "months":
+                return (
+                    new Date(this.getFullYear(), this.getMonth(), 1).getTime() >
+                    new Date(date.getFullYear(), date.getMonth(), 1).getTime()
+                );
 
-      case 'M': return String(this.getMonth() + 1);
-      case 'MM': return `0${this.getMonth() + 1}`.slice(-2);
-      case 'MMM': return DateTime.shortMonths(lang)[this.getMonth()];
-      case 'MMMM': return DateTime.longMonths(lang)[this.getMonth()];
+            case "year":
+            case "years":
+                return this.getFullYear() > date.getFullYear();
+        }
 
-      case 'D': return String(this.getDate());
-      case 'DD': return `0${this.getDate()}`.slice(-2);
-
-      default: return '';
+        throw new Error("isAfter: Invalid unit!");
     }
-  }
 
+    public isSameOrAfter(date: DateTimeParser, unit = "seconds"): boolean {
+        switch (unit) {
+            case "second":
+            case "seconds":
+                return this.getTime() >= date.getTime();
+
+            case "day":
+            case "days":
+                return (
+                    new Date(
+                        this.getFullYear(),
+                        this.getMonth(),
+                        this.getDate()
+                    ).getTime() >=
+                    new Date(
+                        date.getFullYear(),
+                        date.getMonth(),
+                        date.getDate()
+                    ).getTime()
+                );
+
+            case "month":
+            case "months":
+                return (
+                    new Date(
+                        this.getFullYear(),
+                        this.getMonth(),
+                        1
+                    ).getTime() >=
+                    new Date(date.getFullYear(), date.getMonth(), 1).getTime()
+                );
+        }
+
+        throw new Error("isSameOrAfter: Invalid unit!");
+    }
+
+    public isSame(date: DateTimeParser, unit = "seconds"): boolean {
+        switch (unit) {
+            case "second":
+            case "seconds":
+                return this.getTime() === date.getTime();
+
+            case "day":
+            case "days":
+                return (
+                    new Date(
+                        this.getFullYear(),
+                        this.getMonth(),
+                        this.getDate()
+                    ).getTime() ===
+                    new Date(
+                        date.getFullYear(),
+                        date.getMonth(),
+                        date.getDate()
+                    ).getTime()
+                );
+
+            case "month":
+            case "months":
+                return (
+                    new Date(
+                        this.getFullYear(),
+                        this.getMonth(),
+                        1
+                    ).getTime() ===
+                    new Date(date.getFullYear(), date.getMonth(), 1).getTime()
+                );
+        }
+
+        throw new Error("isSame: Invalid unit!");
+    }
+
+    public add(duration: number, unit = "seconds"): DateTimeParser {
+        switch (unit) {
+            case "second":
+            case "seconds":
+                this.setSeconds(this.getSeconds() + duration);
+                break;
+
+            case "day":
+            case "days":
+                this.setDate(this.getDate() + duration);
+                break;
+
+            case "month":
+            case "months":
+                this.setMonth(this.getMonth() + duration);
+                break;
+        }
+
+        return this;
+    }
+
+    public subtract(duration: number, unit = "seconds"): DateTimeParser {
+        switch (unit) {
+            case "second":
+            case "seconds":
+                this.setSeconds(this.getSeconds() - duration);
+                break;
+
+            case "day":
+            case "days":
+                this.setDate(this.getDate() - duration);
+                break;
+
+            case "month":
+            case "months":
+                this.setMonth(this.getMonth() - duration);
+                break;
+        }
+
+        return this;
+    }
+
+    public diff(date: DateTimeParser, unit = "seconds"): number {
+        const oneDay = 1000 * 60 * 60 * 24;
+
+        switch (unit) {
+            default:
+            case "second":
+            case "seconds":
+                return this.getTime() - date.getTime();
+
+            case "day":
+            case "days":
+                return Math.round((this.timestamp() - date.getTime()) / oneDay);
+
+            case "month":
+            case "months":
+            // @TODO
+        }
+    }
+
+    public format(format: string, lang: string = "en-US"): string {
+        return DateTime.fromJSDate(this.dateInstance).toFormat(format);
+    }
+
+    private timestamp(): number {
+        return new Date(
+            this.getFullYear(),
+            this.getMonth(),
+            this.getDate(),
+            0,
+            0,
+            0,
+            0
+        ).getTime();
+    }
 }
