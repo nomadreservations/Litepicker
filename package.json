@@ -1,6 +1,6 @@
 {
   "name": "@nomadreservations/litepicker",
-  "version": "1.5.7-luxon.1",
+  "version": "1.5.7-luxon.2",
   "description": "Date range picker - lightweight, no dependencies",
   "main": "./dist/js/main.js",
   "types": "./dist/js/index.d.ts",
