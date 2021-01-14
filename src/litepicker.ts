@@ -323,12 +323,12 @@ export class Litepicker extends Calendar {
                     new DateTimeParser(
                         this.options.element.value,
                         this.options.format,
-                        this.options.formatFn
+                        this.options.lang
                     ),
                     new DateTimeParser(
                         this.options.elementEnd.value,
                         this.options.format,
-                        this.options.formatFn
+                        this.options.lang
                     ),
                 ];
             }
@@ -341,7 +341,7 @@ export class Litepicker extends Calendar {
                     new DateTimeParser(
                         this.options.element.value,
                         this.options.format,
-                        this.options.formatFn
+                        this.options.lang
                     ),
                 ];
             }
@@ -358,17 +358,10 @@ export class Litepicker extends Calendar {
                 .slice(splittedValue.length / 2)
                 .join(delimiter);
 
+            console.log(d1, d2, "updating");
             return [
-                new DateTimeParser(
-                    d1,
-                    this.options.format,
-                    this.options.formatFn
-                ),
-                new DateTimeParser(
-                    d2,
-                    this.options.format,
-                    this.options.formatFn
-                ),
+                new DateTimeParser(d1, this.options.format, this.options.lang),
+                new DateTimeParser(d2, this.options.format, this.options.lang),
             ];
         }
 
@@ -864,20 +857,24 @@ export class Litepicker extends Calendar {
             isValid =
                 startValue instanceof DateTimeParser &&
                 endValue instanceof DateTimeParser &&
-                startValue.format(dateFormat) === this.options.element.value &&
-                endValue.format(dateFormat) === this.options.elementEnd.value;
+                startValue.format(dateFormat, this.options.lang) ===
+                    this.options.element.value &&
+                endValue.format(dateFormat, this.options.lang) ===
+                    this.options.elementEnd.value;
         } else if (this.options.singleMode) {
             isValid =
                 startValue instanceof DateTimeParser &&
-                startValue.format(dateFormat) === this.options.element.value;
+                startValue.format(dateFormat, this.options.lang) ===
+                    this.options.element.value;
         } else {
             isValid =
                 startValue instanceof DateTimeParser &&
                 endValue instanceof DateTimeParser &&
                 // tslint:disable-next-line: max-line-length
-                `${startValue.format(dateFormat)}${
+                `${startValue.format(dateFormat, this.options.lang)}${
                     this.options.delimiter
-                }${endValue.format(dateFormat)}` === this.options.element.value;
+                }${endValue.format(dateFormat, this.options.lang)}` ===
+                    this.options.element.value;
         }
 
         if (isValid) {

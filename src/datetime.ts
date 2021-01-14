@@ -2,7 +2,7 @@ import { DateTime } from "luxon";
 export class DateTimeParser {
     public static parseDateTimeParser(
         date: Date | DateTimeParser | string,
-        format: string = "YYYY-MM-DD",
+        format: string = "yyyy-MM-dd",
         lang: string = "en-US"
     ): Date {
         if (!date) return new Date(NaN);
@@ -16,9 +16,6 @@ export class DateTimeParser {
         }
 
         if (typeof date === "string") {
-            if (format === "YYYY-MM-DD") {
-                return DateTime.fromISO(date).toJSDate();
-            }
             const dt = DateTime.fromFormat(date, format, { locale: lang });
             return dt.toJSDate();
         }
@@ -37,18 +34,6 @@ export class DateTimeParser {
             }
             return new DateTimeParser(d, format);
         });
-    }
-
-    public static getDateZeroTime(date: Date): Date {
-        return new Date(
-            date.getFullYear(),
-            date.getMonth(),
-            date.getDate(),
-            0,
-            0,
-            0,
-            0
-        );
     }
 
     // replace to regexp lookbehind when most popular browsers will support
@@ -496,7 +481,9 @@ export class DateTimeParser {
     }
 
     public format(format: string, lang: string = "en-US"): string {
-        return DateTime.fromJSDate(this.dateInstance).toFormat(format);
+        return DateTime.fromJSDate(this.dateInstance).toFormat(format, {
+            locale: lang,
+        });
     }
 
     private timestamp(): number {

@@ -9,7 +9,7 @@ export class Calendar {
         parentEl: null,
         // tslint:disable-next-line: object-literal-sort-keys
         firstDay: 1,
-        format: "YYYY-MM-DD",
+        format: "yyyy-MM-dd",
         lang: "en-US",
         delimiter: " - ",
         numberOfMonths: 1,
@@ -39,18 +39,18 @@ export class Calendar {
         autoRefresh: false,
         moveByOneMonth: false,
 
-        lockDaysFormat: "YYYY-MM-DD",
+        lockDaysFormat: "yyyy-MM-dd",
         lockDays: [],
         disallowLockDaysInRange: false,
         lockDaysInclusivity: "[]",
 
-        bookedDaysFormat: "YYYY-MM-DD",
+        bookedDaysFormat: "yyyy-MM-dd",
         bookedDays: [],
         disallowBookedDaysInRange: false,
         bookedDaysInclusivity: "[]",
         anyBookedDaysAsCheckout: false,
 
-        highlightedDaysFormat: "YYYY-MM-DD",
+        highlightedDaysFormat: "yyyy-MM-dd",
         highlightedDays: [],
 
         dropdowns: {
